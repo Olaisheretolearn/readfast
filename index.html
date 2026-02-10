@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Speed Reader</title>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #000;
+      font-family: Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .top-line,
+    .bottom-line {
+      width: 100%;
+      height: 2px;
+      background-color: #fff;
+      position: absolute;
+    }
+
+    .top-line {
+      top: 140px;
+    }
+
+    .bottom-line {
+      top: 340px;
+    }
+
+    .vertical-line {
+      width: 2px;
+      height: 200px;
+      background-color: #fff;
+      position: absolute;
+      left: 50%;
+      top: 140px;
+      transform: translateX(-50%);
+    }
+
+ .word-display {
+  position: absolute;
+  top: 210px;
+  left: 50%;
+  font-size: 80px;
+  color: #fff;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+    .word-display .red {
+      color: #ff0000;
+    }
+
+    .controls {
+      position: absolute;
+      bottom: 60px;
+      right: 60px;
+      background-color: #fff;
+      padding: 20px;
+      width: 350px;
+    }
+
+    .controls.hidden {
+      display: none;
+    }
+
+    .input-area {
+      width: 100%;
+      min-height: 80px;
+      padding: 10px;
+      margin-bottom: 15px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      resize: vertical;
+      font-family: Arial, sans-serif;
+    }
+
+    .speed-control {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .speed-buttons {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .speed-btn {
+      width: 30px;
+      height: 30px;
+      background-color: #000;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .speed-btn:hover {
+      background-color: #333;
+    }
+
+    .speed-value {
+      min-width: 30px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .start-btn {
+      width: 100%;
+      padding: 12px;
+      background-color: #000;
+      color: #fff;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .start-btn:hover {
+      background-color: #333;
+    }
+
+    /* top segment */
+.vertical-line.top {
+  top: 140px;
+  height: 60px;
+}
+
+/* bottom segment */
+.vertical-line.bottom {
+  top: 290px;
+  height: 50px;
+}
+
+
+@media (max-width: 480px) {
+  .word-display {
+    font-size: 65px;
+  }
+
+    .controls {
+      position: absolute;
+      bottom: 30px;
+      right: 60px;
+      background-color: #fff;
+      padding: 8px;
+      width: 300px;
+    }
+}
+
+
+
+
+
+  </style>
+</head>
+
+<body>
+  <div class="top-line"></div>
+<div class="vertical-line top"></div>
+<div class="vertical-line bottom"></div>
+
+  <div class="bottom-line"></div>
+
+  <div class="word-display" id="wordDisplay"></div>
+
+  <div class="controls" id="controls">
+    <textarea
+      class="input-area"
+      id="textInput"
+      placeholder="The quick brown fox jumped over a big fence"
+    >The quick brown fox jumped over a big fence</textarea>
+
+    <div class="speed-control">
+      <div class="speed-buttons">
+        <button class="speed-btn" id="decreaseSpeed">-</button>
+        <span class="speed-value" id="speedValue">1</span>
+        <button class="speed-btn" id="increaseSpeed">+</button>
+      </div>
+
+      <button class="start-btn" id="startBtn">Start</button>
+    </div>
+  </div>
+
+  <script>
+    let speed = 1;
+    let words = [];
+    let currentIndex = 0;
+    let intervalId = null;
+
+    const textInput = document.getElementById("textInput");
+    const speedValue = document.getElementById("speedValue");
+    const startBtn = document.getElementById("startBtn");
+    const decreaseSpeed = document.getElementById("decreaseSpeed");
+    const increaseSpeed = document.getElementById("increaseSpeed");
+    const controls = document.getElementById("controls");
+    const wordDisplay = document.getElementById("wordDisplay");
+
+    decreaseSpeed.addEventListener("click", () => {
+      if (speed > 1) {
+        speed--;
+        speedValue.textContent = speed;
+      }
+    });
+
+    increaseSpeed.addEventListener("click", () => {
+      speed++;
+      speedValue.textContent = speed;
+    });
+
+    startBtn.addEventListener("click", () => {
+      const text = textInput.value.trim();
+      if (!text) return;
+
+      words = text.split(/\s+/);
+      currentIndex = 0;
+
+      controls.classList.add("hidden");
+      displayNextWord();
+
+      intervalId = setInterval(displayNextWord, 1000 / speed);
+    });
+
+    function displayNextWord() {
+      if (currentIndex >= words.length) {
+        clearInterval(intervalId);
+        wordDisplay.innerHTML = "";
+        wordDisplay.style.transform = "";
+        controls.classList.remove("hidden");
+        return;
+      }
+
+      formatWord(words[currentIndex]);
+      currentIndex++;
+    }
+
+    function formatWord(word) {
+      if (!word) return;
+
+      wordDisplay.innerHTML = "";
+
+      if (word.length === 1) {
+        const span = document.createElement("span");
+        span.className = "red";
+        span.textContent = word;
+        wordDisplay.appendChild(span);
+
+        const rect = span.getBoundingClientRect();
+        wordDisplay.style.transform = `translateX(-${rect.width / 2}px)`;
+        return;
+      }
+
+      const before = word[0];
+      const middle = word[1];
+      const after = word.slice(2);
+
+      const beforeSpan = document.createElement("span");
+      beforeSpan.textContent = before;
+
+      const middleSpan = document.createElement("span");
+      middleSpan.className = "red";
+      middleSpan.textContent = middle;
+
+      const afterSpan = document.createElement("span");
+      afterSpan.textContent = after;
+
+      wordDisplay.append(beforeSpan, middleSpan, afterSpan);
+
+      const offset =
+        beforeSpan.getBoundingClientRect().width +
+        middleSpan.getBoundingClientRect().width / 2;
+
+      wordDisplay.style.transform = `translateX(-${offset}px)`;
+    }
+  </script>
+</body>
+</html>
