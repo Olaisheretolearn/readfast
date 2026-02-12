@@ -24,8 +24,9 @@
     .top-line,
     .bottom-line {
       width: 100%;
-      height: 2px;
+      height: 1px;
       background-color: #fff;
+      opacity: 0.4;
       position: absolute;
     }
 
@@ -39,6 +40,7 @@
 
     .vertical-line {
       width: 2px;
+      opacity: 0.4;
       height: 200px;
       background-color: #fff;
       position: absolute;
@@ -51,7 +53,7 @@
   position: absolute;
   top: 210px;
   left: 50%;
-  font-size: 80px;
+  font-size: 64px;
   color: #fff;
   white-space: nowrap;
   line-height: 1;
@@ -135,6 +137,21 @@
       background-color: #333;
     }
 
+ .speed-indicator {
+  position: absolute;
+  top: 355px; /* slightly below bottom horizontal line */
+  left: 90%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 16px;
+  opacity: 0.35;
+  font-style: italic;
+  letter-spacing: 1px;
+  pointer-events: none;
+}
+
+
+
     /* top segment */
 .vertical-line.top {
   top: 140px;
@@ -150,7 +167,7 @@
 
 @media (max-width: 480px) {
   .word-display {
-    font-size: 65px;
+    font-size: 48px;
   }
 
     .controls {
@@ -178,6 +195,8 @@
   <div class="bottom-line"></div>
 
   <div class="word-display" id="wordDisplay"></div>
+  <div class="speed-indicator" id="speedIndicator">300 wpm</div>
+
 
   <div class="controls" id="controls">
     <textarea
@@ -198,95 +217,124 @@
   </div>
 
   <script>
-    let speed = 1;
-    let words = [];
-    let currentIndex = 0;
-    let intervalId = null;
+  let speed = 300; // words per minute
+  let words = [];
+  let currentIndex = 0;
+  let intervalId = null;
 
-    const textInput = document.getElementById("textInput");
-    const speedValue = document.getElementById("speedValue");
-    const startBtn = document.getElementById("startBtn");
-    const decreaseSpeed = document.getElementById("decreaseSpeed");
-    const increaseSpeed = document.getElementById("increaseSpeed");
-    const controls = document.getElementById("controls");
-    const wordDisplay = document.getElementById("wordDisplay");
+  const textInput = document.getElementById("textInput");
+  const startBtn = document.getElementById("startBtn");
+  const decreaseSpeed = document.getElementById("decreaseSpeed");
+  const increaseSpeed = document.getElementById("increaseSpeed");
+  const wordDisplay = document.getElementById("wordDisplay");
+  const speedIndicator = document.getElementById("speedIndicator");
 
-    decreaseSpeed.addEventListener("click", () => {
-      if (speed > 1) {
-        speed--;
-        speedValue.textContent = speed;
-      }
-    });
+  /* -----------------------------
+     SPEED + TIMING LOGIC
+  ------------------------------ */
 
-    increaseSpeed.addEventListener("click", () => {
-      speed++;
-      speedValue.textContent = speed;
-    });
+  function getIntervalDuration() {
+    return 60000 / speed; // correct WPM math
+  }
 
-    startBtn.addEventListener("click", () => {
-      const text = textInput.value.trim();
-      if (!text) return;
+  function startInterval() {
+    clearInterval(intervalId);
+    intervalId = setInterval(displayNextWord, getIntervalDuration());
+  }
 
-      words = text.split(/\s+/);
-      currentIndex = 0;
+  function stopInterval() {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
 
-      controls.classList.add("hidden");
-      displayNextWord();
+  function updateSpeedDisplay() {
+    speedIndicator.textContent = speed + " wpm";
+  }
 
-      intervalId = setInterval(displayNextWord, 1000 / speed);
-    });
-
-    function displayNextWord() {
-      if (currentIndex >= words.length) {
-        clearInterval(intervalId);
-        wordDisplay.innerHTML = "";
-        wordDisplay.style.transform = "";
-        controls.classList.remove("hidden");
-        return;
-      }
-
-      formatWord(words[currentIndex]);
-      currentIndex++;
+  decreaseSpeed.addEventListener("click", () => {
+    if (speed > 50) {
+      speed -= 25;
+      updateSpeedDisplay();
+      if (intervalId) startInterval(); // live update
     }
+  });
 
-    function formatWord(word) {
-      if (!word) return;
+  increaseSpeed.addEventListener("click", () => {
+    speed += 25;
+    updateSpeedDisplay();
+    if (intervalId) startInterval(); // live update
+  });
 
+  /* -----------------------------
+     START READING
+  ------------------------------ */
+
+  startBtn.addEventListener("click", () => {
+    const text = textInput.value.trim();
+    if (!text) return;
+
+    words = text.split(/\s+/);
+    currentIndex = 0;
+
+    displayNextWord();
+    startInterval();
+  });
+
+  /* -----------------------------
+     WORD LOOP
+  ------------------------------ */
+
+  function displayNextWord() {
+    if (currentIndex >= words.length) {
+      stopInterval();
       wordDisplay.innerHTML = "";
-
-      if (word.length === 1) {
-        const span = document.createElement("span");
-        span.className = "red";
-        span.textContent = word;
-        wordDisplay.appendChild(span);
-
-        const rect = span.getBoundingClientRect();
-        wordDisplay.style.transform = `translateX(-${rect.width / 2}px)`;
-        return;
-      }
-
-      const before = word[0];
-      const middle = word[1];
-      const after = word.slice(2);
-
-      const beforeSpan = document.createElement("span");
-      beforeSpan.textContent = before;
-
-      const middleSpan = document.createElement("span");
-      middleSpan.className = "red";
-      middleSpan.textContent = middle;
-
-      const afterSpan = document.createElement("span");
-      afterSpan.textContent = after;
-
-      wordDisplay.append(beforeSpan, middleSpan, afterSpan);
-
-      const offset =
-        beforeSpan.getBoundingClientRect().width +
-        middleSpan.getBoundingClientRect().width / 2;
-
-      wordDisplay.style.transform = `translateX(-${offset}px)`;
+      wordDisplay.style.transform = "";
+      return;
     }
-  </script>
+
+    formatWord(words[currentIndex]);
+    currentIndex++;
+  }
+
+  /* -----------------------------
+     ORP (Optimal Recognition Point)
+  ------------------------------ */
+
+  function formatWord(word) {
+    if (!word) return;
+
+    wordDisplay.innerHTML = "";
+
+    const pivotIndex = Math.max(
+      0,
+      Math.min(word.length - 1, Math.floor(word.length * 0.35))
+    );
+
+    const before = word.slice(0, pivotIndex);
+    const pivot = word[pivotIndex];
+    const after = word.slice(pivotIndex + 1);
+
+    const beforeSpan = document.createElement("span");
+    beforeSpan.textContent = before;
+
+    const pivotSpan = document.createElement("span");
+    pivotSpan.className = "red";
+    pivotSpan.textContent = pivot;
+
+    const afterSpan = document.createElement("span");
+    afterSpan.textContent = after;
+
+    wordDisplay.append(beforeSpan, pivotSpan, afterSpan);
+
+    const offset =
+      beforeSpan.getBoundingClientRect().width +
+      pivotSpan.getBoundingClientRect().width / 2;
+
+    wordDisplay.style.transform = `translateX(-${offset}px)`;
+  }
+
+  updateSpeedDisplay();
+</script>
+
 </body>
 </html>
